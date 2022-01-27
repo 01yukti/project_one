@@ -14,15 +14,18 @@ data "aws_ami" "ubuntu" {
   owners = ["aws-marketplace"]
 }
 
-#configure resources
+#configure instances
 resource "aws_instance" "first-ec2" {
   ami             = data.aws_ami.ubuntu.id
   instance_type   = "t2.micro"
-  security_groups = ["${aws_security_group.secgroup.name}"]
+  security_groups = [aws_security_group.secgroup.id]
   key_name        = "project1"
+  count           = length(local.private_cidr)
+  subnet_id       = aws_subnet.private[count.index].id
 
   user_data = <<-EOF
               #!/bin/bash
+              sleep 120
               sudo apt update
               sudo apt -y install apache2
               sudo service apache2 start
@@ -30,13 +33,14 @@ resource "aws_instance" "first-ec2" {
               EOF
 
   tags = {
-    Name = "first-ec2"
+    Name = "instances"
   }
 }
 
 #configure security group
 resource "aws_security_group" "secgroup" {
-  name = "secgroup"
+  name   = "secgroup"
+  vpc_id = aws_vpc.example.id
 
   ingress {
     from_port   = 80
