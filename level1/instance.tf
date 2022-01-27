@@ -14,14 +14,14 @@ data "aws_ami" "ubuntu" {
   owners = ["aws-marketplace"]
 }
 
-#configure instances
-resource "aws_instance" "first-ec2" {
-  ami             = data.aws_ami.ubuntu.id
+#replace ec2 instances by launch configuration and hence by autoscaling groups
+resource "aws_launch_configuration" "lc" {
+  image_id        = data.aws_ami.ubuntu.id
   instance_type   = "t2.micro"
   security_groups = [aws_security_group.secgroup.id]
   key_name        = "project1"
-  count           = length(local.private_cidr)
-  subnet_id       = aws_subnet.private[count.index].id
+  #count           = length(local.private_cidr)
+  #subnet_id       = aws_subnet.private[count.index].id
 
   user_data = <<-EOF
               #!/bin/bash
@@ -32,8 +32,24 @@ resource "aws_instance" "first-ec2" {
               echo "<h1>hello world</h1>" | sudo tee /var/www/html/index.html
               EOF
 
-  tags = {
-    Name = "instances"
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+#configure autoscaling group
+resource "aws_autoscaling_group" "asg" {
+  launch_configuration = aws_launch_configuration.lc.id
+  vpc_zone_identifier  = [for subnet in aws_subnet.private : subnet.id]
+  target_group_arns    = [aws_alb_target_group.albtg.arn]
+  health_check_type    = "ELB"
+  min_size             = 2
+  max_size             = 4
+
+  tag {
+    key                 = "Name"
+    value               = "terraform-asg"
+    propagate_at_launch = true
   }
 }
 
