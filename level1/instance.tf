@@ -25,6 +25,7 @@ resource "aws_instance" "first-ec2" {
 
   user_data = <<-EOF
               #!/bin/bash
+              sleep 120
               sudo apt update
               sudo apt -y install apache2
               sudo service apache2 start
