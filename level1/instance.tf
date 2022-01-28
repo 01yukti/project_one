@@ -20,8 +20,8 @@ resource "aws_launch_configuration" "lc" {
   instance_type   = "t2.micro"
   security_groups = [aws_security_group.secgroup.id]
   key_name        = "project1"
-  #count           = length(local.private_cidr)
-  #subnet_id       = aws_subnet.private[count.index].id
+  #attach role to ec2 instance
+  iam_instance_profile = aws_iam_instance_profile.ec2_instance_profile.name
 
   user_data = <<-EOF
               #!/bin/bash
@@ -79,4 +79,53 @@ resource "aws_security_group" "secgroup" {
     cidr_blocks      = ["0.0.0.0/0"]
     ipv6_cidr_blocks = ["::/0"]
   }
+}
+
+#create a IAM role for ec2 to access s3 bucket
+resource "aws_iam_role" "ec2_role" {
+  name = "ec2_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Sid    = ""
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      },
+    ]
+  })
+
+  tags = {
+    tag-key = "ec2_role"
+  }
+}
+
+#create a policy for s3 full access
+resource "aws_iam_role_policy" "ec2_role_policy" {
+  name = "ec2_role_policy"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    "Version" : "2012-10-17",
+    "Statement" : [
+      {
+        "Effect" : "Allow",
+        "Action" : [
+          "s3:*",
+          "s3-object-lambda:*"
+        ],
+        "Resource" : "*"
+      }
+    ]
+  })
+}
+
+#create a ec2 instance profile to link the role to ec2
+resource "aws_iam_instance_profile" "ec2_instance_profile" {
+  name = "ec2_instance_profile"
+  role = aws_iam_role.ec2_role.name
 }
