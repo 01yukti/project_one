@@ -20,8 +20,6 @@ resource "aws_launch_configuration" "lc" {
   instance_type   = "t2.micro"
   security_groups = [aws_security_group.secgroup.id]
   key_name        = "project1"
-  #count           = length(local.private_cidr)
-  #subnet_id       = aws_subnet.private[count.index].id
 
   user_data = <<-EOF
               #!/bin/bash
