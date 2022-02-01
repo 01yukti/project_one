@@ -14,6 +14,15 @@ data "aws_ami" "ubuntu" {
   owners = ["aws-marketplace"]
 }
 
+resource "aws_instance" "bation" {
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = "t2.micro"
+  key_name                    = "project1"
+  security_groups             = [aws_security_group.secgroup.id]
+  associate_public_ip_address = true
+  subnet_id                   = aws_subnet.public[0].id
+}
+
 #replace ec2 instances by launch configuration and hence by autoscaling groups
 resource "aws_launch_configuration" "lc" {
   image_id        = data.aws_ami.ubuntu.id
