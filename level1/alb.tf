@@ -62,7 +62,7 @@ resource "aws_alb_target_group" "albtg" {
   health_check {
     port     = 80
     protocol = "HTTP"
-    timeout  = 5
+    timeout  = 6
     interval = 10
   }
 
