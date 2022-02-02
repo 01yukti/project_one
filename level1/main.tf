@@ -109,3 +109,23 @@ resource "aws_route_table_association" "pr_ta" {
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private_rt[count.index].id
 }
+
+resource "aws_route53_zone" "primary" {
+  name = "yukti.click"
+
+  tags = {
+    Name = "primary"
+  }
+}
+
+resource "aws_route53_record" "www" {
+  zone_id = aws_route53_zone.primary.zone_id
+  name    = "www.yukti.click"
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.alb.dns_name
+    zone_id                = aws_lb.alb.zone_id
+    evaluate_target_health = true
+  }
+}
