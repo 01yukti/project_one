@@ -7,3 +7,4 @@ module "database" {
   security_groups    = module.instances.security_groups
   autocreate_db      = true
 }
+    
