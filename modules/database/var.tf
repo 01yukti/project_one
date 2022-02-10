@@ -16,8 +16,4 @@ variable "aws_subnet_public" {}
 
 variable "aws_subnet_private" {}
 
-variable "target_group_arn" {}
-
-variable "autoscaling_grp_name" {}
-
 variable "security_groups" {}
