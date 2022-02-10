@@ -1,5 +1,7 @@
 #create mysql database
 resource "aws_db_instance" "project_db" {
+  count = var.autocreate_db ? 1 : 0
+  
   allocated_storage    = 10
   engine               = "mysql"
   engine_version       = "8.0.27"

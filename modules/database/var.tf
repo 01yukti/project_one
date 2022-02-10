@@ -17,3 +17,8 @@ variable "aws_subnet_public" {}
 variable "aws_subnet_private" {}
 
 variable "security_groups" {}
+
+variable "autocreate_db" {
+  description = "If set to true, create db otherwise not"
+  type        = bool
+}
