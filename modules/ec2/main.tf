@@ -17,7 +17,7 @@ data "aws_ami" "ubuntu" {
 resource "aws_instance" "bastion" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = "t2.micro"
-  key_name                    = "project1"
+  key_name                    = "project"
   security_groups             = [aws_security_group.secgroup.id]
   associate_public_ip_address = true
   subnet_id                   = var.aws_subnet_public[0]
@@ -28,7 +28,7 @@ resource "aws_launch_configuration" "lc" {
   image_id        = data.aws_ami.ubuntu.id
   instance_type   = "t2.micro"
   security_groups = [aws_security_group.secgroup.id]
-  key_name        = "project1"
+  key_name        = "project"
   #attach role to ec2 instance
   iam_instance_profile = aws_iam_instance_profile.ec2_instance_profile.name
 
@@ -44,6 +44,10 @@ resource "aws_launch_configuration" "lc" {
   lifecycle {
     create_before_destroy = true
   }
+}
+
+output "security_groups" {
+    value = aws_security_group.secgroup.id
 }
 
 #configure autoscaling group
@@ -137,6 +141,70 @@ resource "aws_iam_role_policy" "ec2_role_policy" {
       }
     ]
   })
+}
+
+#create a policy for secretmanager
+resource "aws_iam_role_policy" "secret_manager" {
+  name = "ec2_secret_manager"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "secretsmanager:*",
+                "cloudformation:CreateChangeSet",
+                "cloudformation:DescribeChangeSet",
+                "cloudformation:DescribeStackResource",
+                "cloudformation:DescribeStacks",
+                "cloudformation:ExecuteChangeSet",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeVpcs",
+                "kms:DescribeKey",
+                "kms:ListAliases",
+                "kms:ListKeys",
+                "lambda:ListFunctions",
+                "rds:DescribeDBClusters",
+                "rds:DescribeDBInstances",
+                "redshift:DescribeClusters",
+                "tag:GetResources"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "lambda:AddPermission",
+                "lambda:CreateFunction",
+                "lambda:GetFunction",
+                "lambda:InvokeFunction",
+                "lambda:UpdateFunctionConfiguration"
+            ],
+            "Effect": "Allow",
+            "Resource": "arn:aws:lambda:*:*:function:SecretsManager*"
+        },
+        {
+            "Action": [
+                "serverlessrepo:CreateCloudFormationChangeSet",
+                "serverlessrepo:GetApplication"
+            ],
+            "Effect": "Allow",
+            "Resource": "arn:aws:serverlessrepo:*:*:applications/SecretsManager*"
+        },
+        {
+            "Action": [
+                "s3:GetObject"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:s3:::awsserverlessrepo-changesets*",
+                "arn:aws:s3:::secrets-manager-rotation-apps-*/*"
+            ]
+        }
+    ]
+})
 }
 
 #create a ec2 instance profile to link the role to ec2

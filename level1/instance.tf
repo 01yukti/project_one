@@ -5,5 +5,6 @@ module "instances" {
   autoscaling_grp_name = module.instances.autoscaling_grp_name
   aws_subnet_public    = module.network.aws_subnet_public
   aws_subnet_private   = module.network.aws_subnet_private
-  target_group_arn = module.loadbalancer.target_group_arn
+  target_group_arn     = module.loadbalancer.target_group_arn
+  security_groups      = module.instances.security_groups
 }
