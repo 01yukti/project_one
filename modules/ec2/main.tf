@@ -14,21 +14,11 @@ data "aws_ami" "ubuntu" {
   owners = ["aws-marketplace"]
 }
 
-resource "aws_instance" "bastion" {
-  ami                         = data.aws_ami.ubuntu.id
-  instance_type               = "t2.micro"
-  key_name                    = "project"
-  security_groups             = [aws_security_group.secgroup.id]
-  associate_public_ip_address = true
-  subnet_id                   = var.aws_subnet_public[0]
-}
-
 #replace ec2 instances by launch configuration and hence by autoscaling groups
 resource "aws_launch_configuration" "lc" {
   image_id        = data.aws_ami.ubuntu.id
   instance_type   = "t2.micro"
   security_groups = [aws_security_group.secgroup.id]
-  key_name        = "project"
   #attach role to ec2 instance
   iam_instance_profile = aws_iam_instance_profile.ec2_instance_profile.name
 
@@ -39,6 +29,11 @@ resource "aws_launch_configuration" "lc" {
               sudo apt -y install apache2
               sudo service apache2 start
               echo "<h1>hello world</h1>" | sudo tee /var/www/html/index.html
+              mkdir /tmp/ssm
+              cd /tmp/ssm
+              wget https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
+              sudo dpkg -i amazon-ssm-agent.deb
+              sudo systemctl enable amazon-ssm-agent
               EOF
 
   lifecycle {
@@ -53,7 +48,6 @@ output "security_groups" {
 #configure autoscaling group
 resource "aws_autoscaling_group" "asg" {
   launch_configuration = aws_launch_configuration.lc.id
-  #vpc_zone_identifier  = [for subnet in var.aws_subnet_private : subnet.id]
   vpc_zone_identifier  = [var.aws_subnet_private[0],var.aws_subnet_private[1]]
   target_group_arns    = [var.target_group_arn]
   health_check_type    = "ELB"
@@ -74,19 +68,11 @@ output "autoscaling_grp_name" {
 #configure security group
 resource "aws_security_group" "secgroup" {
   name   = "secgroup"
-  #vpc_id = aws_vpc.example.id
   vpc_id = var.vpc_id
 
   ingress {
     from_port   = 80
     to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -202,6 +188,59 @@ resource "aws_iam_role_policy" "secret_manager" {
                 "arn:aws:s3:::awsserverlessrepo-changesets*",
                 "arn:aws:s3:::secrets-manager-rotation-apps-*/*"
             ]
+        }
+    ]
+})
+}
+
+#create a policy for ssm
+resource "aws_iam_role_policy" "policy_ssm" {
+  name = "ec2_ssm_policy"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "cloudwatch:PutMetricData",
+                "ds:CreateComputer",
+                "ds:DescribeDirectories",
+                "ec2:DescribeInstanceStatus",
+                "logs:*",
+                "ssm:*",
+                "ec2messages:*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "iam:CreateServiceLinkedRole",
+            "Resource": "arn:aws:iam::*:role/aws-service-role/ssm.amazonaws.com/AWSServiceRoleForAmazonSSM*",
+            "Condition": {
+                "StringLike": {
+                    "iam:AWSServiceName": "ssm.amazonaws.com"
+                }
+            }
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "iam:DeleteServiceLinkedRole",
+                "iam:GetServiceLinkedRoleDeletionStatus"
+            ],
+            "Resource": "arn:aws:iam::*:role/aws-service-role/ssm.amazonaws.com/AWSServiceRoleForAmazonSSM*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ssmmessages:CreateControlChannel",
+                "ssmmessages:CreateDataChannel",
+                "ssmmessages:OpenControlChannel",
+                "ssmmessages:OpenDataChannel"
+            ],
+            "Resource": "*"
         }
     ]
 })
