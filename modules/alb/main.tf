@@ -1,7 +1,6 @@
 #configure security group
 resource "aws_security_group" "alb_sg" {
   name   = "alb_sg"
-  #vpc_id = aws_vpc.example.id
   vpc_id = var.vpc_id
 
   ingress {
@@ -37,7 +36,6 @@ resource "aws_lb" "alb" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb_sg.id]
-  #subnets            = [for subnet in var.aws_subnet_public : subnet.id]
   subnets = [var.aws_subnet_public[0],var.aws_subnet_public[1]]
   tags = {
     Name = "custom-alb"
@@ -90,18 +88,16 @@ resource "aws_autoscaling_attachment" "asg_tg_attach" {
   alb_target_group_arn   = var.target_group_arn
 }
 
-#create a route53 zone
-resource "aws_route53_zone" "primary" {
-  name = "yukti.click"
-
-  tags = {
-    Name = "primary"
-  }
+data "aws_route53_zone" "primary" {
+  #name         = "yukti.click"
+  zone_id = "Z0534829L44ZZMXX0RQ6"
+  private_zone = true
 }
+
 
 #create a record under route53
 resource "aws_route53_record" "www" {
-  zone_id = aws_route53_zone.primary.zone_id
+  zone_id = data.aws_route53_zone.primary.zone_id
   name    = "www.yukti.click"
   type    = "A"
 
@@ -114,7 +110,7 @@ resource "aws_route53_record" "www" {
 
 #create a cert
 resource "aws_acm_certificate" "alb_cert" {
-  domain_name       = "yukti.click"
+  domain_name       = "*.yukti.click"
   validation_method = "DNS"
 
   lifecycle {
@@ -136,7 +132,7 @@ resource "aws_route53_record" "val_cert" {
   records         = [each.value.record]
   ttl             = 60
   type            = each.value.type
-  zone_id         = aws_route53_zone.primary.zone_id
+  zone_id         = data.aws_route53_zone.primary.zone_id
 }
 
 #validate cert
