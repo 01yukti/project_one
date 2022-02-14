@@ -5,5 +5,5 @@ module "database" {
   aws_subnet_public  = module.network.aws_subnet_public
   aws_subnet_private = module.network.aws_subnet_private
   security_groups    = module.instances.security_groups
-  autocreate_db      = true
+  autocreate_db      = false
 }
